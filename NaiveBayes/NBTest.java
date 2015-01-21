@@ -72,7 +72,7 @@ public class NBTest {
                 float p = (mp.get(feat) + smooth) / (mp.get("*") + smooth * wordset.size());
                 mp.put(feat, p);
             }
-            float prior = (tmpMap.get(key) + smooth) / (tmpMap.get("*") + smooth * map.size());
+            float prior = tmpMap.get(key) / tmpMap.get("*");
             mp.put(key, prior);
             mp.put("*", smooth / (smooth * wordset.size()));
         }
