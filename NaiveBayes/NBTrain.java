@@ -4,25 +4,26 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 
 /**
  * 
  */
 
 /**
+ * Streaming Naive Bayes - Training Part
+ * Counting is done in memory
+ * 
  * @author Jiachen Li (jiachenl)
  *
  */
 public class NBTrain {
 
-    // Streaming Naive Bayes
     public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
         // HashMap to store the counts
         Map<String, Integer> map = new HashMap<>();
-        map.put("Y=*", 0);
+        map.put("*", 0); // Y=*
         
         ArrayList<String> labels = new ArrayList<>();
         ArrayList<String> feats = new ArrayList<>();        
@@ -34,10 +35,10 @@ public class NBTrain {
             }
             
             // process input sample
-            // get the label
+            // extract the label
             String[] seg = line.trim().split("\t");
             if (seg.length != 2) {
-                System.out.println("invalid: " + line);
+                //System.out.println("invalid: " + line);
                 continue;
             }
             String[] tags = seg[0].trim().split(",");
@@ -47,22 +48,24 @@ public class NBTrain {
                 }
             }
             
+            // label format: * or *CAT
             for (int i = 0; i < labels.size(); i++) {
-                String label = "Y=" + labels.get(i);
+                String label = labels.get(i);
                 if (map.containsKey(label)) {
                     map.put(label, map.get(label) + 1);
                 } else {
                     map.put(label, 1);
-                    map.put(label + ",W=*", 0);
+                    map.put(label + ",*", 0);
                 }
             }
-            map.put("Y=*", map.get("Y=*") + labels.size());
+            map.put("*", map.get("*") + labels.size()); // update Y=*
             
-            // process features
+            // count each features
+            // feature format *CAT,* or *CAT,Word
             feats = tokenizeDoc(seg[1]);
             for (String feat : feats) {
                 for (int i = 0; i < labels.size(); i++) {
-                    String key = "Y=" + labels.get(i) + ",W=" + feat;
+                    String key = labels.get(i) + "," + feat;
                     if (map.containsKey(key)) {
                         map.put(key, map.get(key) + 1);
                     } else {
@@ -72,7 +75,7 @@ public class NBTrain {
             }
             
             for (int i = 0; i < labels.size(); i++) {
-                String key = "Y=" + labels.get(i) + ",W=*";
+                String key = labels.get(i) + ",*";
                 map.put(key, map.get(key) + feats.size());
             }
             
@@ -82,7 +85,22 @@ public class NBTrain {
         br.close();
         
         for (String key : map.keySet()) {
-            System.out.println(key + "\t" + map.get(key));
+            StringBuilder sb = new StringBuilder();
+            if (!key.contains(",")) { // prior count
+                sb.append("Y=");
+                sb.append(key);
+                sb.append("\t");
+                sb.append(map.get(key));
+            } else { // feature count
+                String[] seg = key.split(",");
+                sb.append("Y=");
+                sb.append(seg[0]);
+                sb.append(",W=");
+                sb.append(seg[1]);
+                sb.append("\t");
+                sb.append(map.get(key));
+            }
+            System.out.println(sb.toString());
         }       
     }
     
