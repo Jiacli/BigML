@@ -3,114 +3,141 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+
 
 /**
+ * Small Memory Footprint Streaming Naive Bayes
+ * - Training Part
  * 
- */
-
-/**
- * Streaming Naive Bayes - Training Part
- * Counting is done in memory
- * 
- * @author Jiachen Li (jiachenl)
+ * @author JK
  *
  */
 public class NBTrain {
 
-    public static void main(String[] args) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    
+    
+    static Map<String, Map<Integer, Integer>> model;
+    static Map<String, Integer> prior;
+    static int model_size;
+    static Set<Integer> wordSet;            // Word hash
+    static final int BUFFSIZE = 100000;     // buffer size for set and map
+    static final int STARHASH = "*".hashCode();
 
-        // HashMap to store the counts
-        Map<String, Integer> map = new HashMap<>();
-        map.put("*", 0); // Y=*
+    public static void main(String[] args) throws IOException {
+        wordSet = new HashSet<>();
+        prior = new HashMap<>();
+        prior.put("*", 0);
+        model = new HashMap<>();
+        model_size = 0;
         
-        ArrayList<String> labels = new ArrayList<>();
-        ArrayList<String> feats = new ArrayList<>();        
+//        List<String> tokens = tokenizeDoc("xy,ab,m,tt\t wrod gmsd_%20_wuhuo_fucky*u! dome you_dam%EC! hao~$ hehe.");
+//        for (String string : tokens) {
+//            System.out.println(string);
+//        }
         
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
             }
             
-            // process input sample
-            // extract the label
-            String[] seg = line.trim().split("\t");
-            if (seg.length != 2) {
-                //System.out.println("invalid: " + line);
-                continue;
-            }
-            String[] tags = seg[0].trim().split(",");
-            for (String tag : tags) {
-                if (tag.endsWith("CAT")) {
-                    labels.add(tag);
-                }
-            }
+            ArrayList<String> tokens = tokenizeDoc(line);
+            String[] labels = tokens.get(0).split(",");
             
-            // label format: * or *CAT
-            for (int i = 0; i < labels.size(); i++) {
-                String label = labels.get(i);
-                if (map.containsKey(label)) {
-                    map.put(label, map.get(label) + 1);
+            for (int i = 0; i < labels.length; i++) {
+                Map<Integer, Integer> map;
+                if (!model.containsKey(labels[i])) {
+                    map = new HashMap<>();
+                    map.put(STARHASH, 0);
+                    model.put(labels[i], map);
+                    prior.put(labels[i], 0);
                 } else {
-                    map.put(label, 1);
-                    map.put(label + ",*", 0);
+                    map = model.get(labels[i]);
                 }
-            }
-            map.put("*", map.get("*") + labels.size()); // update Y=*
-            
-            // count each features
-            // feature format *CAT,* or *CAT,Word
-            feats = tokenizeDoc(seg[1]);
-            for (String feat : feats) {
-                for (int i = 0; i < labels.size(); i++) {
-                    String key = labels.get(i) + "," + feat;
-                    if (map.containsKey(key)) {
-                        map.put(key, map.get(key) + 1);
-                    } else {
-                        map.put(key, 1);
+                for (int j = 1; j < tokens.size(); j++) {
+                    // update word set
+                    String word = tokens.get(j);
+                    wordSet.add(word.hashCode());
+                    if (wordSet.size() > BUFFSIZE) {
+                        for (int hash : wordSet) {
+                            System.out.println(hash);
+                        }
+                        wordSet.clear();
                     }
+
+                    // update #(W=word,Y=label)
+                    updateParamCount(labels[i], word.hashCode(), 1);
                 }
+                map.put(STARHASH, map.get(STARHASH) + tokens.size() - 1); // update #(W=*,Y=label)
+                prior.put(labels[i], prior.get(labels[i]) + 1);
+                prior.put("*", prior.get("*") + 1);
             }
-            
-            for (int i = 0; i < labels.size(); i++) {
-                String key = labels.get(i) + ",*";
-                map.put(key, map.get(key) + feats.size());
-            }
-            
-            labels.clear();
-            feats.clear();
         }
         br.close();
         
-        for (String key : map.keySet()) {
-            StringBuilder sb = new StringBuilder();
-            if (!key.contains(",")) { // prior count
-                sb.append("Y=");
-                sb.append(key);
-                sb.append("\t");
-                sb.append(map.get(key));
-            } else { // feature count
-                String[] seg = key.split(",");
-                sb.append("Y=");
-                sb.append(seg[0]);
-                sb.append(",W=");
-                sb.append(seg[1]);
-                sb.append("\t");
-                sb.append(map.get(key));
+        if (model_size > 0) {
+            for (String tag : model.keySet()) {
+                Map<Integer, Integer> map = model.get(tag);
+                for (int hash : map.keySet()) {
+                    System.out.println(tag + "," + hash + "\t" + map.get(hash));
+                }
+                map.clear();
             }
-            System.out.println(sb.toString());
-        }       
+            model_size = 0;
+        }
+        
+        if (wordSet.size() > 0) {
+            for (int hash : wordSet) {
+                System.out.println(hash);
+            }
+            wordSet.clear();
+        }
+
+        // output prior count #(Y=y) & #(Y=*)
+        for (String label : prior.keySet()) {
+            System.out.println(label + "\t" + prior.get(label));
+        }
+        prior.clear();
+        
     }
+    
+    private static void updateParamCount(String label, int wordhash, int n) {
+        Map<Integer, Integer> map = model.get(label);
+        
+        if (map.containsKey(wordhash)) {          // update #(W=word,Y=label)
+            map.put(wordhash, map.get(wordhash) + n);
+        } else {
+            map.put(wordhash, n);
+            model_size++;
+        }
+
+        // check whether buffer is full
+        if (model_size > BUFFSIZE) {
+            for (String tag : model.keySet()) {
+                map = model.get(tag);
+                for (int hash : map.keySet()) {
+                    System.out.println(tag + "," + hash + "\t" + map.get(hash));
+                }
+                map.clear();
+                map.put(STARHASH, 0);
+            }
+            model_size = 0;
+        }
+    }
+    
     
     private static ArrayList<String> tokenizeDoc(String cur_doc) {
         String[] words = cur_doc.split("\\s+");
         ArrayList<String> tokens = new ArrayList<>();
-        for (int i = 0; i < words.length; i++) {
+        tokens.add(words[0]);  // label will be stored at index 0
+        for (int i = 1; i < words.length; i++) {
             words[i] = words[i].replaceAll("\\W", "");
             if (words[i].length() > 0) {
-                tokens.add(words[i]);
+                tokens.add(words[i].toLowerCase());
             }
         }
         return tokens;

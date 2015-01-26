@@ -4,180 +4,153 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 
- */
-
-/**
- * @author Jiachen Li (jiachenl)
+ * @author JK
  *
  */
 public class NBTest {
 
-
-    // NB model parameters
-    private static Map<String, Map<Integer, Float>> model;
-    private static Map<String, Integer> wordset;
-    private static final float smooth = 1.0f;
+    static Map<String, Map<Integer, Float>> model;
+    static Set<Integer> wordSet;
+    static Map<String, Float> prior;
+    static final int STARHASH = "*".hashCode();
+    static final float SMOOTH = 1.0f;
     
-
+    /**
+     * @param args
+     * @throws IOException 
+     */
     public static void main(String[] args) throws IOException {
+        wordSet = getTestWordSet(args[0]);
+        buildModelWithNeededWords();
         
-        wordset = new HashMap<String, Integer>();
-        model = new HashMap<String, Map<Integer, Float>>();
-        model.put("CCAT", new HashMap<Integer, Float>()); // Corporate/Industrial
-        model.put("ECAT", new HashMap<Integer, Float>()); // Economics
-        model.put("GCAT", new HashMap<Integer, Float>()); // Government/Social
-        model.put("MCAT", new HashMap<Integer, Float>()); // Markets
-        
-        Map<String, Float> priorMap = new HashMap<>();
-        
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        // predict using NB model
+        BufferedReader br = new BufferedReader(new InputStreamReader(
+                new FileInputStream(args[0])));
         String line;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
             }
+            ArrayList<String> tokens = tokenizeDoc(line);
             
-            // input validation
-            String[] seg = line.split("\t");
-            if (seg.length != 2) {
-                continue;
-            }
-            // input type
-            // 1. Y=y; 2. Y=*; 3. Y=y,W=w; 4. Y=y,W=*;
-            if (seg[0].contains(",")) { // case 3,4
-                String[] pair = seg[0].split(",");
-                String word = pair[1].substring(2);
-                if (!wordset.containsKey(word)) {
-                    wordset.put(word, wordset.size() + 1);
-                }
-                model.get(pair[0].substring(2)).put(wordset.get(word), Float.valueOf(seg[1]));
-            } else { // case 1,2
-                priorMap.put(seg[0].substring(2), Float.valueOf(seg[1]));
-            }          
-        }
-        br.close();
-        
-        // build Naive Bayes model
-        int star = wordset.remove("*");
-        for (String key : model.keySet()) {
-            Map<Integer, Float> map = model.get(key);
-            for (int feat : map.keySet()) {
-                if (feat == star) {
-                    continue;
-                }
-                float p = (map.get(feat) + smooth) / (map.get(star) + smooth * wordset.size());
-                map.put(feat, (float)Math.log(p));
-            }
-            float prior = priorMap.get(key) / priorMap.get("*");
-            map.put(0, (float)Math.log(prior));
-            map.put(-1, (float)Math.log(smooth / (smooth * wordset.size())));
-            map.remove(star);
-        }
-        // so in the map
-        // 0 - prior
-        // -1 - words not in this class
-        // 1-N - words this class has
-        priorMap.clear();
-        predict(args[0]);       
-
-//        Runtime runtime = Runtime.getRuntime();
-//        System.out.println("Memory used:  "
-//                        + ((runtime.totalMemory() - runtime.freeMemory()) / (1024L * 1024L))
-//                        + " MB");
-    }
-    
-    private static void predict(String testFile) throws IOException {
-        // load test data
-//        List<String> labels = new ArrayList<>();
-        List<String> feats = new ArrayList<>();
-        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(
-                testFile)));
-//        int testSize = 0, acc = 0;
-        
-        String line;
-        while ((line = br.readLine()) != null) {
-            if (line.length() == 0) {
-                continue;
-            }
-            
-            // extract the label
-            String[] seg = line.trim().split("\t");
-            if (seg.length != 2) {
-                continue;
-            }
-//            testSize++;
-            
-//            String[] tags = seg[0].trim().split(",");
-//            for (String tag : tags) {
-//                if (tag.endsWith("CAT")) {
-//                    labels.add(tag);
-//                }
-//            }
-            
-            // prediction using model
-            feats = tokenizeDoc(seg[1]);
+            // predict
             String label = "";
             float score = - Float.MAX_VALUE;
-            
             for (String tag : model.keySet()) {
                 Map<Integer, Float> map = model.get(tag);
-                float s = map.get(0);
+                float s = prior.get(tag);
                 
-                for (int i = 0; i < feats.size(); i++) {
-                    String feat = feats.get(i);
-                    if (!wordset.containsKey(feat)) {
+                for (int i = 1; i < tokens.size(); i++) {
+                    int wordhash = tokens.get(i).hashCode();
+                    if (!wordSet.contains(wordhash)) {
                         continue;
                     }
-                    int wordKey = wordset.get(feat);
-                    if (map.containsKey(wordKey)) {
-                        s += map.get(wordKey);
+                    if (map.containsKey(wordhash)) {
+                        s += map.get(wordhash);
                     } else {
-                        s += map.get(-1);
+                        s += prior.get("#");
                     }
                 }
+                
                 if (s > score) {
                     score = s;
                     label = tag;
                 }
             }
-            
             System.out.println(label + "\t" + score);
-            
-//            // check accuracy
-//            for (int i = 0; i < labels.size(); i++) {
-//                if (label.equals(labels.get(i))) {
-//                    acc++;
-//                    break;
-//                }
-//            }
-            
-//            labels.clear();
-            feats.clear();
         }
         br.close();
-
-//        System.out.println("Test Accuracy: " + (double)acc / testSize);
-//        System.out.println("Wordset size: " + wordset.size());
     }
     
+    private static void buildModelWithNeededWords() throws IOException {
+        model = new HashMap<>();
+        prior = new HashMap<>();
+        
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        String line;
+        // Collect needed parameters
+        while ((line = br.readLine()) != null) {
+            if (line.length() == 0) {
+                continue;
+            }
+            
+            String[] seg = line.split(" ");
+            if (seg.length == 3) { // label wordhash count
+                int wordhash = Integer.parseInt(seg[1]);
+                if (!wordSet.contains(wordhash)) {
+                    continue;
+                }
+                float count = Float.parseFloat(seg[2]);
+                
+                if (!model.containsKey(seg[0])) {
+                    Map<Integer, Float> map = new HashMap<>();
+                    map.put(wordhash, count);
+                    model.put(seg[0], map);
+                } else {
+                    model.get(seg[0]).put(wordhash, count);
+                }                
+            } else if (seg.length == 2) {
+                prior.put(seg[0], Float.parseFloat(seg[1]));
+            } else {
+                System.out.println("bad line");
+                continue;
+            }
+        }
+        br.close();
+        wordSet.clear();
+        
+        // update model parameters
+        float featsize = prior.get("#");
+        for (String label : model.keySet()) {
+            Map<Integer, Float> map = model.get(label);
+            for (int hash : map.keySet()) {
+                if (hash == STARHASH) {
+                    continue;
+                }
+                float p = (map.get(hash) + SMOOTH) / (map.get(STARHASH) + SMOOTH * featsize);
+                map.put(hash, (float)Math.log(p));
+                wordSet.add(hash); // rebuild the wordSet
+            }
+            float pr = prior.get(label) / prior.get("*");
+            prior.put(label, (float)Math.log(pr));
+        }
+        prior.put("#", (float)Math.log(SMOOTH / (SMOOTH * featsize)));        
+    }
     
-    
+    private static Set<Integer> getTestWordSet(String filename) throws IOException {
+        HashSet<Integer> set = new HashSet<>();
+        BufferedReader br = new BufferedReader(new InputStreamReader(
+                new FileInputStream(filename)));
+        String line;
+        while ((line = br.readLine()) != null) {
+            if (line.length() == 0) {
+                continue;
+            }
+            ArrayList<String> tokens = tokenizeDoc(line);
+            for (int i = 1; i < tokens.size(); i++) {
+                set.add(tokens.get(i).hashCode());
+            }
+        }
+        br.close();
+        set.add(STARHASH);
+        return set;
+    }
 
     private static ArrayList<String> tokenizeDoc(String cur_doc) {
         String[] words = cur_doc.split("\\s+");
         ArrayList<String> tokens = new ArrayList<>();
-        for (int i = 0; i < words.length; i++) {
+        tokens.add(words[0]);  // label will be stored at index 0
+        for (int i = 1; i < words.length; i++) {
             words[i] = words[i].replaceAll("\\W", "");
             if (words[i].length() > 0) {
-                tokens.add(words[i]);
+                tokens.add(words[i].toLowerCase());
             }
         }
         return tokens;
     }
-
 }
