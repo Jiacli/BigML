@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -11,8 +13,12 @@ import java.io.InputStreamReader;
  * 
  */
 public class MergeCounts {
+    
+    static List<String> buffer;
+    static final int BUFFSIZE = 10000;
 
     public static void main(String[] args) throws IOException {
+        buffer = new ArrayList<>();
         
         int wordCount = 0, sum = 0;
         String lastLine = "";
@@ -34,18 +40,25 @@ public class MergeCounts {
                 sum += Integer.parseInt(seg[1]);
             } else {
                 if (sum > 0) {
-                    System.out.println(lastLine.replaceFirst(",", " ") + " " + sum);
+                    buffer.add(lastLine.replaceFirst(",", " ") + " " + sum);
+                    if (buffer.size() > BUFFSIZE) {
+                        for (String str : buffer) {
+                            System.out.println(str);
+                        }
+                        buffer.clear();
+                    }                    
                 }
                 lastLine = seg[0];
                 sum = Integer.parseInt(seg[1]);
             }
         }
-        
         if (sum > 0) {
-            System.out.println(lastLine.replaceFirst(",", " ") + " " + sum);
+            buffer.add(lastLine.replaceFirst(",", " ") + " " + sum);
         }
-        
+        for (String str : buffer) {
+            System.out.println(str);
+        }
         System.out.println("# " + wordCount);
+        buffer.clear(); 
     }
-
 }

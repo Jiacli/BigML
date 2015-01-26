@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,6 +29,8 @@ public class NBTest {
         wordSet = getTestWordSet(args[0]);
         buildModelWithNeededWords();
         
+        int all = 0, correct = 0;
+        
         // predict using NB model
         BufferedReader br = new BufferedReader(new InputStreamReader(
                 new FileInputStream(args[0])));
@@ -36,7 +39,8 @@ public class NBTest {
             if (line.length() == 0) {
                 continue;
             }
-            ArrayList<String> tokens = tokenizeDoc(line);
+            List<Integer> tokens = new ArrayList<>();
+            String allLabel = tokenizeDoc(line, tokens);
             
             // predict
             String label = "";
@@ -45,7 +49,7 @@ public class NBTest {
                 Map<Integer, Float> map = model.get(tag);
                 float s = prior.get(tag);
                 
-                for (int i = 1; i < tokens.size(); i++) {
+                for (int i = 0; i < tokens.size(); i++) {
                     int wordhash = tokens.get(i).hashCode();
                     if (!wordSet.contains(wordhash)) {
                         continue;
@@ -63,8 +67,20 @@ public class NBTest {
                 }
             }
             System.out.println(label + "\t" + score);
+            
+            // acc
+            all++;
+            String[] labels = allLabel.split(",");
+            for (String tag : labels) {
+                if (label.equals(tag)) {
+                    correct++;
+                    break;
+                }
+            }
         }
         br.close();
+        
+        System.out.println("acc: " + ((float)correct) / all);
     }
     
     private static void buildModelWithNeededWords() throws IOException {
@@ -131,9 +147,11 @@ public class NBTest {
             if (line.length() == 0) {
                 continue;
             }
-            ArrayList<String> tokens = tokenizeDoc(line);
-            for (int i = 1; i < tokens.size(); i++) {
-                set.add(tokens.get(i).hashCode());
+            List<Integer> tokens = new ArrayList<>();
+            tokenizeDoc(line, tokens);
+            // The tokens have already been hashcode
+            for (int i = 0; i < tokens.size(); i++) {
+                set.add(tokens.get(i));
             }
         }
         br.close();
@@ -141,16 +159,43 @@ public class NBTest {
         return set;
     }
 
-    private static ArrayList<String> tokenizeDoc(String cur_doc) {
+    // tokenize the documents and return the label
+    private static String tokenizeDoc(String cur_doc, List<Integer> tokens) {
+        Set<Integer> stopwords = stopWords();
         String[] words = cur_doc.split("\\s+");
-        ArrayList<String> tokens = new ArrayList<>();
-        tokens.add(words[0]);  // label will be stored at index 0
+        String label = words[0]; // label will be stored at index 0
+
         for (int i = 1; i < words.length; i++) {
             words[i] = words[i].replaceAll("\\W", "");
             if (words[i].length() > 0) {
-                tokens.add(words[i].toLowerCase());
+                int wordhash = words[i].toLowerCase().hashCode();
+                if (!stopwords.contains(wordhash)){
+                    tokens.add(wordhash);
+                }                
             }
         }
-        return tokens;
+        return label;
+    }
+    
+    static final String[] stopwords = {"a", "able", "about", "across", "after", "almost",
+            "also", "am", "among", "an", "and", "any", "are", "as", "at", "be", "all",
+            "because", "been", "but", "by", "can", "cannot", "could", "dear", "did",
+            "do", "does", "either", "else", "ever", "every", "for", "from", "get",
+            "got", "had", "has", "have", "he", "her", "hers", "him", "his", "how",
+            "however", "i", "if", "in", "into", "is", "it", "its", "just", "least",
+            "let", "like", "likely", "may", "me", "might", "most", "must", "my",
+            "neither", "no", "nor", "not", "of", "off", "often", "on", "only", "or", 
+            "other", "our", "own", "rather", "said", "say", "says", "she", "should", 
+            "since", "so", "some", "than", "that", "the", "their", "them", "then", 
+            "there", "these", "they", "this", "tis", "to", "too", "twas", "us", "wants", 
+            "was", "we", "were", "what", "when", "where", "which", "while", "who", 
+            "whom", "why", "will", "with", "would", "yet", "you", "your"};
+    
+    private static Set<Integer> stopWords() {
+        Set<Integer> set = new HashSet<>();
+        for (String word : stopwords) {
+            set.add(word.hashCode());
+        }
+        return set;        
     }
 }
