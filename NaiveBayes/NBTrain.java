@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 
 /**
@@ -18,11 +19,11 @@ import java.util.Set;
  */
 public class NBTrain {
 
-    static Map<String, Map<Integer, Integer>> model;
+    static Map<String, Map<Integer, Short>> model;
     static Map<String, Integer> prior;
     static int model_size;
-    static Set<Integer> wordSet;            // Word hash
-    static final int BUFFSIZE = 100000;     // buffer size for set and map
+    static Set<Integer> wordSet;           // Word hash
+    static final int BUFFSIZE = 10000;     // buffer size for set and map
     static final int STARHASH = "*".hashCode();
 
     public static void main(String[] args) throws IOException {
@@ -48,10 +49,10 @@ public class NBTrain {
             String[] labels = tokenizeDoc(line, tokens).split(",");
             
             for (int i = 0; i < labels.length; i++) {
-                Map<Integer, Integer> map;
+                Map<Integer, Short> map;
                 if (!model.containsKey(labels[i])) {
                     map = new HashMap<>();
-                    map.put(STARHASH, 0);
+                    map.put(STARHASH, (short) 0);
                     model.put(labels[i], map);
                     prior.put(labels[i], 0);
                 } else {
@@ -61,17 +62,11 @@ public class NBTrain {
                     // update word set
                     int wordhash = tokens.get(j);
                     wordSet.add(wordhash);
-                    if (wordSet.size() > BUFFSIZE) {
-                        for (int hash : wordSet) {
-                            System.out.println(hash);
-                        }
-                        wordSet.clear();
-                    }
 
                     // update #(W=word,Y=label)
-                    updateParamCount(labels[i], wordhash, 1);
+                    updateParamCount(labels[i], wordhash, (short) 1);
                 }
-                map.put(STARHASH, map.get(STARHASH) + tokens.size() - 1); // update #(W=*,Y=label)
+                map.put(STARHASH, (short) (map.get(STARHASH) + tokens.size() - 1)); // update #(W=*,Y=label)
                 prior.put(labels[i], prior.get(labels[i]) + 1);
                 prior.put("*", prior.get("*") + 1);
             }
@@ -80,7 +75,7 @@ public class NBTrain {
         
         if (model_size > 0) {
             for (String tag : model.keySet()) {
-                Map<Integer, Integer> map = model.get(tag);
+                Map<Integer, Short> map = model.get(tag);
                 for (int hash : map.keySet()) {
                     System.out.println(tag + "," + hash + "\t" + map.get(hash));
                 }
@@ -104,11 +99,11 @@ public class NBTrain {
         
     }
     
-    private static void updateParamCount(String label, int wordhash, int n) {
-        Map<Integer, Integer> map = model.get(label);
+    private static void updateParamCount(String label, int wordhash, short n) {
+        Map<Integer, Short> map = model.get(label);
         
         if (map.containsKey(wordhash)) {          // update #(W=word,Y=label)
-            map.put(wordhash, map.get(wordhash) + n);
+            map.put(wordhash, (short) (map.get(wordhash) + n));
         } else {
             map.put(wordhash, n);
             model_size++;
@@ -122,49 +117,30 @@ public class NBTrain {
                     System.out.println(tag + "," + hash + "\t" + map.get(hash));
                 }
                 map.clear();
-                map.put(STARHASH, 0);
+                map.put(STARHASH, (short) 0);
             }
             model_size = 0;
+            
+            for (int hash : wordSet) {
+                System.out.println(hash);
+            }
+            wordSet.clear();
         }
     }
     
     // tokenize the documents and return the label
     private static String tokenizeDoc(String cur_doc, List<Integer> tokens) {
-        Set<Integer> stopwords = stopWords();
-        String[] words = cur_doc.split("\\s+");
-        String label = words[0]; // label will be stored at index 0
-
-        for (int i = 1; i < words.length; i++) {
-            words[i] = words[i].replaceAll("\\W", "");
-            if (words[i].length() > 0) {
-                int wordhash = words[i].toLowerCase().hashCode();
-                if (!stopwords.contains(wordhash)){
-                    tokens.add(wordhash);
-                }                
+        StringTokenizer st = new StringTokenizer(cur_doc);
+        String label = st.nextToken(); // label will be stored at index 0
+        
+        int sample = 0;
+        while (st.hasMoreTokens()) {
+            String word = st.nextToken();
+            if (word.length() > 3 && sample++ % 3 == 0) {
+                tokens.add(word.replaceAll("\\W", "").toLowerCase().hashCode());
             }
         }
         return label;
     }
-    
-    static final String[] stopwords = {"a", "able", "about", "across", "after", "almost",
-            "also", "am", "among", "an", "and", "any", "are", "as", "at", "be", "all",
-            "because", "been", "but", "by", "can", "cannot", "could", "dear", "did",
-            "do", "does", "either", "else", "ever", "every", "for", "from", "get",
-            "got", "had", "has", "have", "he", "her", "hers", "him", "his", "how",
-            "however", "i", "if", "in", "into", "is", "it", "its", "just", "least",
-            "let", "like", "likely", "may", "me", "might", "most", "must", "my",
-            "neither", "no", "nor", "not", "of", "off", "often", "on", "only", "or", 
-            "other", "our", "own", "rather", "said", "say", "says", "she", "should", 
-            "since", "so", "some", "than", "that", "the", "their", "them", "then", 
-            "there", "these", "they", "this", "tis", "to", "too", "twas", "us", "wants", 
-            "was", "we", "were", "what", "when", "where", "which", "while", "who", 
-            "whom", "why", "will", "with", "would", "yet", "you", "your"};
-    
-    private static Set<Integer> stopWords() {
-        Set<Integer> set = new HashSet<>();
-        for (String word : stopwords) {
-            set.add(word.hashCode());
-        }
-        return set;        
-    }
+
 }

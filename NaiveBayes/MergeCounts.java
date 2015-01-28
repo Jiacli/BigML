@@ -15,7 +15,7 @@ import java.util.List;
 public class MergeCounts {
     
     static List<String> buffer;
-    static final int BUFFSIZE = 10000;
+    static final int BUFFSIZE = 1000;
 
     public static void main(String[] args) throws IOException {
         buffer = new ArrayList<>();
@@ -59,6 +59,6 @@ public class MergeCounts {
             System.out.println(str);
         }
         System.out.println("# " + wordCount);
-        buffer.clear(); 
+        buffer.clear();
     }
 }
