@@ -30,14 +30,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
-import java.util.AbstractMap;
-import java.util.AbstractSet;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class IntObjectHashMap<T> extends AbstractMap<Integer, T> {
     public static class MapEntry<T> implements Map.Entry<Integer, T> {
@@ -305,7 +298,7 @@ public class IntObjectHashMap<T> extends AbstractMap<Integer, T> {
     }
 
     @SuppressWarnings("unchecked")
-    public T put(int key, T value) {
+    private T put(int key, T value) {
         // Check if the key is already in the table.
         // If it is, the new value is used.
         resizeTables(count);

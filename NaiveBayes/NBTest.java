@@ -14,9 +14,6 @@ import java.util.StringTokenizer;
  */
 public class NBTest {
 
-    static Map<String, Map<Integer, Float>> model;
-    //static Set<Integer> wordSet;
-    static Map<String, Float> prior;
     static final int STARHASH = "*".hashCode();
     static final float SMOOTH = 1.0f;
     
@@ -25,20 +22,22 @@ public class NBTest {
      * @throws IOException 
      */
     public static void main(String[] args) throws IOException {
-        //wordSet = getTestWordSet(args[0]);
-        buildModelWithNeededWords();
+        Map<String, IntObjectHashMap<Float>> model = new HashMap<>();
+        Map<String, Float> prior = new HashMap<>();
+        buildModelWithNeededWords(model, prior);
         
 //        int all = 0, correct = 0;
         
         // predict using NB model
         BufferedReader br = new BufferedReader(new InputStreamReader(
                 new FileInputStream(args[0])));
+        List<Integer> tokens = new ArrayList<>();
         String line;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
             }
-            List<Integer> tokens = new ArrayList<>();
+            
             tokenizeDoc(line, tokens);
 //            String allLabel = tokenizeDoc(line, tokens);
             
@@ -46,7 +45,7 @@ public class NBTest {
             String label = "";
             float score = - Float.MAX_VALUE;
             for (String tag : model.keySet()) {
-                Map<Integer, Float> map = model.get(tag);
+                IntObjectHashMap<Float> map = model.get(tag);
                 float s = prior.get(tag);
                 
                 for (int i = 0; i < tokens.size(); i++) {
@@ -75,6 +74,7 @@ public class NBTest {
                 }
             }
             System.out.println(label + "\t" + score);
+            tokens.clear();
             
 //            // acc
 //            all++;
@@ -85,16 +85,15 @@ public class NBTest {
 //                    break;
 //                }
 //            }
+            
         }
         br.close();
         
 //        System.out.println("acc: " + ((float)correct) / all);
     }
     
-    private static void buildModelWithNeededWords() throws IOException {
-        model = new HashMap<>();
-        prior = new HashMap<>();
-        
+    private static void buildModelWithNeededWords(Map<String, IntObjectHashMap<Float>> model,
+            Map<String, Float> prior) throws IOException {        
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line;
         // Collect needed parameters
@@ -122,7 +121,7 @@ public class NBTest {
                 float count = Float.parseFloat(seg[2]);
                 
                 if (!model.containsKey(seg[0])) {
-                    Map<Integer, Float> map = new HashMap<>();
+                    IntObjectHashMap<Float> map = new IntObjectHashMap<>();
                     map.put(wordhash, count);
                     model.put(seg[0], map);
                 } else {
@@ -139,7 +138,7 @@ public class NBTest {
         // update model parameters
         float featsize = prior.get("#");
         for (String label : model.keySet()) {
-            Map<Integer, Float> map = model.get(label);
+            IntObjectHashMap<Float> map = model.get(label);
             for (int hash : map.keySet()) {
                 if (hash == STARHASH) {
                     continue;
@@ -186,6 +185,7 @@ public class NBTest {
                 tokens.add(word.replaceAll("\\W", "").toLowerCase().hashCode());
             }
         }
+        st = null;
         return label;
     }
     

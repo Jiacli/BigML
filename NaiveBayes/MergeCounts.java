@@ -14,11 +14,10 @@ import java.util.List;
  */
 public class MergeCounts {
     
-    static List<String> buffer;
-    static final int BUFFSIZE = 1000;
+    static final int BUFFSIZE = 5000;
 
     public static void main(String[] args) throws IOException {
-        buffer = new ArrayList<>();
+        List<String> buffer = new ArrayList<>();
         
         int wordCount = 0, sum = 0;
         String lastLine = "";
