@@ -19,35 +19,35 @@ import java.util.StringTokenizer;
  */
 public class NBTrain {
 
-    static final int BUFFSIZE = 20000;     // buffer size
+    static Map<String, Map<Integer, Short>> model;
+    static Map<String, Integer> prior;
+    static int model_size;
+    static Set<Integer> wordSet;           // Word hash
+    static final int BUFFSIZE = 20000;     // buffer size for set and map
     static final int STARHASH = "*".hashCode();
 
     public static void main(String[] args) throws IOException {
-        Map<String, IntHashMap> model = new HashMap<>();
-        Set<Integer> wordSet = new HashSet<>();
-        Map<String, Integer> prior = new HashMap<>();
+        wordSet = new HashSet<>();
+        prior = new HashMap<>();
         prior.put("*", 0);
-        int model_size = 0;
-        
-//        String[] tokenss = "xy,ab,m,tt\t wrod gmsd_%20_wuhuo_fucky*u! dome you_dam%EC! hao~$ hehe.".split("[^A-Za-z0-9]");
-//        for (String string : tokenss) {
-//            System.out.println(string);
-//        }
+        model = new HashMap<>();
+        model_size = 0;
         
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         List<Integer> tokens = new ArrayList<>();
-        String line;        
+        String line;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
             }
             
             String[] labels = tokenizeDoc(line, tokens).split(",");
+            
             for (int i = 0; i < labels.length; i++) {
-                IntHashMap map;
+                Map<Integer, Short> map;
                 if (!model.containsKey(labels[i])) {
-                    map = new IntHashMap();
-                    map.put(STARHASH, 0);
+                    map = new HashMap<>();
+                    map.put(STARHASH, (short) 0);
                     model.put(labels[i], map);
                     prior.put(labels[i], 0);
                 } else {
@@ -57,35 +57,17 @@ public class NBTrain {
                     // update word set
                     int wordhash = tokens.get(j);
                     wordSet.add(wordhash);
+//                    if (wordSet.size() > BUFFSIZE) {
+//                        for (int hash : wordSet) {
+//                            System.out.println(hash);
+//                        }
+//                        wordSet.clear();
+//                    }
 
                     // update #(W=word,Y=label)
-                    if (map.containsKey(wordhash)) {          
-                        map.put(wordhash, map.get(wordhash) + 1);
-                    } else {
-                        map.put(wordhash, 1);
-                        model_size++;
-                    }
-                    
-                    // check whether buffer is full
-                    if (model_size > BUFFSIZE) {
-                        for (String tag : model.keySet()) {
-                            map = model.get(tag);
-                            for (int hash : map.keySet()) {
-                                System.out.println(tag + "," + hash + "\t"
-                                        + map.get(hash));
-                            }
-                            map.clear();
-                            map.put(STARHASH, 0);
-                        }
-                        model_size = 0;
-
-                        for (int hash : wordSet) {
-                            System.out.println(hash);
-                        }
-                        wordSet.clear();
-                    }
+                    updateParamCount(labels[i], wordhash, (short) 1);
                 }
-                map.put(STARHASH, map.get(STARHASH) + tokens.size()); // update #(W=*,Y=label)
+                map.put(STARHASH, (short) (map.get(STARHASH) + tokens.size() - 1)); // update #(W=*,Y=label)
                 prior.put(labels[i], prior.get(labels[i]) + 1);
                 prior.put("*", prior.get("*") + 1);
             }
@@ -95,7 +77,7 @@ public class NBTrain {
         
         if (model_size > 0) {
             for (String tag : model.keySet()) {
-                IntHashMap map = model.get(tag);
+                Map<Integer, Short> map = model.get(tag);
                 for (int hash : map.keySet()) {
                     System.out.println(tag + "," + hash + "\t" + map.get(hash));
                 }
@@ -104,12 +86,12 @@ public class NBTrain {
             model_size = 0;
         }
         
-        if (wordSet.size() > 0) {
-            for (int hash : wordSet) {
-                System.out.println(hash);
-            }
-            wordSet.clear();
-        }
+//        if (wordSet.size() > 0) {
+//            for (int hash : wordSet) {
+//                System.out.println(hash);
+//            }
+//            wordSet.clear();
+//        }
 
         // output prior count #(Y=y) & #(Y=*)
         for (String label : prior.keySet()) {
@@ -117,21 +99,47 @@ public class NBTrain {
         }
         prior.clear();
         
+        // output wordsize
+        System.out.println("# " + wordSet.size() * 2);
+        wordSet.clear();        
+    }
+    
+    private static void updateParamCount(String label, int wordhash, short n) {
+        Map<Integer, Short> map = model.get(label);
+        
+        if (map.containsKey(wordhash)) {          // update #(W=word,Y=label)
+            map.put(wordhash, (short) (map.get(wordhash) + n));
+        } else {
+            map.put(wordhash, n);
+            model_size++;
+        }
+
+        // check whether buffer is full
+        if (model_size > BUFFSIZE) {
+            for (String tag : model.keySet()) {
+                map = model.get(tag);
+                for (int hash : map.keySet()) {
+                    System.out.println(tag + "," + hash + "\t" + map.get(hash));
+                }
+                map.clear();
+                map.put(STARHASH, (short) 0);
+            }
+            model_size = 0;
+        }
     }
     
     // tokenize the documents and return the label
     private static String tokenizeDoc(String cur_doc, List<Integer> tokens) {
-        StringTokenizer st = new StringTokenizer(cur_doc);
+        StringTokenizer st = new StringTokenizer(cur_doc, " \t\r\n_");
         String label = st.nextToken(); // label will be stored at index 0
         
         int sample = 0;
         while (st.hasMoreTokens()) {
             String word = st.nextToken();
-            if (word.length() > 3 && sample++ % 3 == 0) {
+            if (word.length() > 3 && word.length() < 15 && sample++ % 3 == 0) {
                 tokens.add(word.replaceAll("\\W", "").toLowerCase().hashCode());
             }
         }
-        st = null;
         return label;
     }
 

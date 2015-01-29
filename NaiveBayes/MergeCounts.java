@@ -14,12 +14,13 @@ import java.util.List;
  */
 public class MergeCounts {
     
-    static final int BUFFSIZE = 5000;
+    static List<String> buffer;
+    static final int BUFFSIZE = 10000;
 
     public static void main(String[] args) throws IOException {
-        List<String> buffer = new ArrayList<>();
+        buffer = new ArrayList<>();
         
-        int wordCount = 0, sum = 0;
+        int sum = 0;
         String lastLine = "";
         
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -30,8 +31,8 @@ public class MergeCounts {
             }
             
             String[] seg = line.split("\t");
-            if (seg.length == 1) {
-                wordCount++;
+            if (seg.length == 1 && seg[0].startsWith("# ")) {
+                System.out.println(seg[0]);
                 continue;
             }
             
@@ -57,7 +58,6 @@ public class MergeCounts {
         for (String str : buffer) {
             System.out.println(str);
         }
-        System.out.println("# " + wordCount);
         buffer.clear();
     }
 }
