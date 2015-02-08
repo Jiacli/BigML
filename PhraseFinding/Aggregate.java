@@ -23,33 +23,49 @@ public class Aggregate {
             System.err.println("Usage: <option 0/1 for uni/bi-gram>");
             System.exit(-1);
         }
-        // Using regular expression to parse the data
-        Pattern pattern = null;
-        if ("0".equals(args[0])) {
-            pattern = Pattern.compile("(\\w+)\\s(\\d+)\\s(\\d+)");
-        } else if ("1".equals(args[1])) {
-            pattern = Pattern.compile("(\\w+\\s\\w+)\\s(\\d+)\\s(\\d+)");
-        } else {
-            System.err.print("Unknown parameter!");
-            System.err.println("Usage: <option 0/1 for uni/bi-gram>");
-            System.exit(-1);
-        }
+        boolean isUnigram = "0".equals(args[0]);
         
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        String line, lastGram = "", lastYear = "";
+        String line, lastGram = "";
+        long Bx = 0, Cx = 0;
         while ((line = br.readLine()) != null) {
-            Matcher matcher = pattern.matcher(line);
-            if (matcher.matches()) {
-                String 
-                int year = Integer.parseInt(matcher.group(2));
-                long count = Long.parseLong(matcher.group(3));
+            if (line.length() == 0) {
+                continue;
             }
+            
+            String[] seg = line.split("\t");
+            int year = Integer.parseInt(seg[1]);
+            long count = Long.parseLong(seg[2]);
+            
+            if (lastGram.equals(seg[0])) {
+                if (year < 1970) { // foreground
+                    Cx += count;
+                } else {
+                    Bx += count;
+                }
+            } else {
+                if (lastGram.length() > 0) {
+                    System.out.println(String.format("%s %d %d", lastGram, Cx, Bx));
+                }
+                lastGram = seg[0];
+                if (year < 1970) {
+                    Cx = count;
+                    Bx = 0;
+                } else {
+                    Bx = count;
+                    Cx = 0;
+                }
+            }
+        }
+        br.close();
+        
+        if (lastGram.length() > 0) {
+            System.out.println(String.format("%s %d %d", lastGram, Cx, Bx));
+        }
+        
+        if (isUnigram) {
+            
         }
 
     }
-    
-    private void parseUnigramInput(BufferedReader br) throws IOException {
-        
-    }
-
 }
