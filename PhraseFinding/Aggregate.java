@@ -27,7 +27,7 @@ public class Aggregate {
         
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         String line, lastGram = "";
-        long Bx = 0, Cx = 0;
+        long Bx = 0, Cx = 0, sumCx = 0, sumBx = 0;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
@@ -46,6 +46,8 @@ public class Aggregate {
             } else {
                 if (lastGram.length() > 0) {
                     System.out.println(String.format("%s %d %d", lastGram, Cx, Bx));
+                    sumCx += Cx;
+                    sumBx += Bx;
                 }
                 lastGram = seg[0];
                 if (year < 1970) {
@@ -61,11 +63,14 @@ public class Aggregate {
         
         if (lastGram.length() > 0) {
             System.out.println(String.format("%s %d %d", lastGram, Cx, Bx));
+            sumCx += Cx;
+            sumBx += Bx;
         }
         
         if (isUnigram) {
-            
+            System.out.println(String.format("* %d %d", sumCx, sumBx));
+        } else {
+            System.out.println(String.format("* * %d %d", sumCx, sumBx));
         }
-
     }
 }

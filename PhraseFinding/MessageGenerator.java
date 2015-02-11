@@ -21,8 +21,12 @@ public class MessageGenerator {
             }
             
             String[] seg = line.split(" ");
-            System.out.println(String.format("%s * %s", seg[0], seg[1]));
-            System.out.println(String.format("%s %s *", seg[1], seg[0]));
+            
+            if (seg[0].equals("*")) {
+                continue;
+            }
+            System.out.println(String.format("%s @ %s", seg[0], seg[1]));
+            System.out.println(String.format("%s %s @", seg[1], seg[0]));
         }
         br.close();
     }
