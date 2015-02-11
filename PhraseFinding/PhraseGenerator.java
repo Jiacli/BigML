@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -97,13 +99,16 @@ public class PhraseGenerator {
             }
         }
         br.close();
+        Runtime.getRuntime().gc();
         
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
         for (double s : map.descendingKeySet()) {
             Phrase ph = map.get(s);
-            System.out.println(ph.phrase + "\t" + s + "\t" + ph.phraseness
-                    + "\t" + ph.informativeness);
+            bw.write(String.format("%s\t%f\t%f\t%f\n", ph.phrase, s, ph.phraseness, ph.informativeness));
+            //System.out.println(ph.phrase + "\t" + s + "\t" + ph.phraseness + "\t" + ph.informativeness);
         }
-
+        bw.flush();
+        bw.close();
     }
     
     private static double KLDivergence(double p, double q) {
