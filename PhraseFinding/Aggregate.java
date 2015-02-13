@@ -1,14 +1,10 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.HashSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 /**
  * 
@@ -36,6 +32,7 @@ public class Aggregate {
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
         String line, lastGram = "";
         long Bx = 0, Cx = 0, sumCx = 0, sumBx = 0;
+        double hf = 0.00001;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
@@ -64,7 +61,15 @@ public class Aggregate {
                 }
             } else {
                 if (lastGram.length() > 0) {
-                    bw.write(String.format("%s %d %d\n", lastGram, Cx, Bx));
+                    if (!isUnigram && Cx <= sumCx * hf && Bx <= sumBx * hf) {
+                        sumCx += Cx;
+                        sumBx += Bx;
+                        continue;
+                    }
+                    
+                    bw.write(lastGram + " " + Cx + " " + Bx + "\n");
+                    
+                    //bw.write(String.format("%s %d %d\n", lastGram, Cx, Bx));
                     //System.out.println(String.format("%s %d %d", lastGram, Cx, Bx));
                     sumCx += Cx;
                     sumBx += Bx;
@@ -84,17 +89,20 @@ public class Aggregate {
         Runtime.getRuntime().gc();
         
         if (lastGram.length() > 0) {
-            bw.write(String.format("%s %d %d\n", lastGram, Cx, Bx));
+            bw.write(lastGram + " " + Cx + " " + Bx + "\n");
+            //bw.write(String.format("%s %d %d\n", lastGram, Cx, Bx));
             //System.out.println(String.format("%s %d %d", lastGram, Cx, Bx));
             sumCx += Cx;
             sumBx += Bx;
         }
         
         if (isUnigram) {
-            bw.write(String.format("* %d %d\n", sumCx, sumBx));
+            bw.write("* " + sumCx + " " + sumBx + "\n");
+            //bw.write(String.format("* %d %d\n", sumCx, sumBx));
             //System.out.println(String.format("* %d %d", sumCx, sumBx));
         } else {
-            bw.write(String.format("* * %d %d\n", sumCx, sumBx));
+            bw.write("* * " + sumCx + " " + sumBx + "\n");
+            //bw.write(String.format("* * %d %d\n", sumCx, sumBx));
             //System.out.println(String.format("* * %d %d", sumCx, sumBx));
         }
         bw.flush();

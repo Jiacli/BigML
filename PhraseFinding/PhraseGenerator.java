@@ -3,7 +3,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.util.Map;
 import java.util.TreeMap;
 
 /**
@@ -104,7 +103,7 @@ public class PhraseGenerator {
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
         for (double s : map.descendingKeySet()) {
             Phrase ph = map.get(s);
-            bw.write(String.format("%s\t%f\t%f\t%f\n", ph.phrase, s, ph.phraseness, ph.informativeness));
+            bw.write(ph.phrase + "\t" + s + "\t" + ph.phraseness + "\t" + ph.informativeness + "\n");
             //System.out.println(ph.phrase + "\t" + s + "\t" + ph.phraseness + "\t" + ph.informativeness);
         }
         bw.flush();

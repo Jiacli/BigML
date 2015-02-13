@@ -31,9 +31,10 @@ public class MessageGenerator {
             if (stopwords.contains(seg[0]) || stopwords.contains(seg[1]) || seg[0].equals("*")) {
                 continue;
             }
-            
-            bw.write(String.format("%s @ %s\n", seg[0], seg[1]));
-            bw.write(String.format("%s %s @\n", seg[1], seg[0]));
+            bw.write(seg[0] + " @ " + seg[1] + "\n");
+            bw.write(seg[1] + " " + seg[0] + " @\n");
+            //bw.write(String.format("%s @ %s\n", seg[0], seg[1]));
+            //bw.write(String.format("%s %s @\n", seg[1], seg[0]));
             //System.out.println(String.format("%s @ %s", seg[0], seg[1]));
             //System.out.println(String.format("%s %s @", seg[1], seg[0]));
         }

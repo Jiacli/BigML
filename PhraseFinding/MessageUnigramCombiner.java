@@ -22,7 +22,7 @@ public class MessageUnigramCombiner {
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
 
         String line, unigram = "";
-        long Cx = 0, Bx = 0;
+        long Cx = 0/*, Bx = 0*/;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
@@ -41,13 +41,15 @@ public class MessageUnigramCombiner {
             if (!unigram.equals(seg[0])) {
                 unigram = seg[0];
                 Cx = Long.parseLong(seg[1]);
-                Bx = Long.parseLong(seg[2]);
+                //Bx = Long.parseLong(seg[2]);
             } else {
                 if ("@".equals(seg[1])) {
-                    bw.write(String.format("%s %s x%d %d\n", unigram, seg[2], Cx, Bx));
+                    bw.write(unigram + " " + seg[2] + " x" + Cx + "\n"); 
+                    //bw.write(String.format("%s %s x%d\n", unigram, seg[2], Cx));
                     //System.out.println(String.format("%s %s x%d %d", unigram, seg[2], Cx, Bx));
                 } else {
-                    bw.write(String.format("%s %s y%d %d\n", seg[1], unigram, Cx, Bx));
+                    bw.write(seg[1] + " " + unigram + " y" + Cx + "\n");
+                    //bw.write(String.format("%s %s y%d\n", seg[1], unigram, Cx));
                     //System.out.println(String.format("%s %s y%d %d", seg[1], unigram, Cx, Bx));
                 }
             }
