@@ -32,7 +32,7 @@ public class Aggregate {
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
         String line, lastGram = "";
         long Bx = 0, Cx = 0, sumCx = 0, sumBx = 0;
-        double hf = 0.00001;
+        double hf = 0.01, hf_Cx = 0;
         while ((line = br.readLine()) != null) {
             if (line.length() == 0) {
                 continue;
@@ -61,10 +61,23 @@ public class Aggregate {
                 }
             } else {
                 if (lastGram.length() > 0) {
-                    if (!isUnigram && Cx <= sumCx * hf && Bx <= sumBx * hf) {
-                        sumCx += Cx;
-                        sumBx += Bx;
-                        continue;
+                    if (!isUnigram) {
+                        if (Cx <= hf_Cx * hf) {
+                            sumCx += Cx;
+                            sumBx += Bx;
+                            lastGram = seg[0];
+                            if (year < 1970) {
+                                Cx = count;
+                                Bx = 0;
+                            } else {
+                                Bx = count;
+                                Cx = 0;
+                            }
+                            continue;
+                        }
+                        if (Cx >= hf_Cx) {
+                            hf_Cx = Cx;
+                        }
                     }
                     
                     bw.write(lastGram + " " + Cx + " " + Bx + "\n");
@@ -86,7 +99,6 @@ public class Aggregate {
         }
         br.close();
         stopwords.clear();
-        Runtime.getRuntime().gc();
         
         if (lastGram.length() > 0) {
             bw.write(lastGram + " " + Cx + " " + Bx + "\n");
@@ -107,7 +119,6 @@ public class Aggregate {
         }
         bw.flush();
         bw.close();
-        Runtime.getRuntime().gc();
     }
     
     public static HashSet<String> loadStopWords(String filename)

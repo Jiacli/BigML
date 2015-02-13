@@ -98,7 +98,6 @@ public class PhraseGenerator {
             }
         }
         br.close();
-        Runtime.getRuntime().gc();
         
         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
         for (double s : map.descendingKeySet()) {

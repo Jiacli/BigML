@@ -39,10 +39,8 @@ public class MessageGenerator {
             //System.out.println(String.format("%s %s @", seg[1], seg[0]));
         }
         br.close();
-        Runtime.getRuntime().gc();
         bw.flush();
         bw.close();
-        Runtime.getRuntime().gc();
     }
     
     public static HashSet<String> loadStopWords(String filename)

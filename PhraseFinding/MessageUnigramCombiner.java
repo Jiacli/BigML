@@ -55,10 +55,8 @@ public class MessageUnigramCombiner {
             }
         }
         br.close();
-        Runtime.getRuntime().gc();
         bw.flush();
         bw.close();
-        Runtime.getRuntime().gc();
     }
 
 }
