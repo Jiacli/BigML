@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -47,15 +48,23 @@ public class NB_train_hadoop {
 
             // tokenize and map
             ArrayList<String> feats = tokenizeDoc(seg[1]);
+            HashMap<String, Integer> map = new HashMap<String, Integer>();
+            for (String feat : feats) {
+                if (map.containsKey(feat)) {
+                    map.put(feat, map.get(feat) + 1);
+                } else {
+                    map.put(feat, 1);
+                }
+            }
             for (int i = 0; i < labels.size(); i++) {
                 String label = labels.get(i);
 
                 outKey.set("Y=" + label + ",W=*");
                 context.write(outKey, new IntWritable(feats.size()));
 
-                for (String feat : feats) {
+                for (String feat : map.keySet()) {
                     outKey.set("Y=" + label + ",W=" + feat);
-                    context.write(outKey, one);
+                    context.write(outKey, new IntWritable(map.get(feat)));
                 }
             }
         }
