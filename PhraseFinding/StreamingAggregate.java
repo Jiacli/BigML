@@ -14,7 +14,7 @@ import java.util.HashSet;
  * @author Jiachen
  *
  */
-public class Aggregate {
+public class StreamingAggregate {
 
     /**
      * @param args
