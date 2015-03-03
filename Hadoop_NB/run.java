@@ -115,6 +115,7 @@ public class run {
 
         Configuration conf = new Configuration();
         conf.set("mapred.textoutputformat.separator", "\t");
+        conf.set("mapred.reduce.slowstart.completed.maps", "1.0");
 
         Job job = new Job(conf, "Naive Bayes Training");
         job.setJarByClass(run.class);
