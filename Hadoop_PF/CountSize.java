@@ -1,11 +1,9 @@
 import java.io.IOException;
-import java.util.HashSet;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Reducer.Context;
 
 /**
  * 
@@ -17,54 +15,58 @@ import org.apache.hadoop.mapreduce.Reducer.Context;
  */
 public class CountSize {
 
-    public static class CountSizeMap extends Mapper<Text, Text, Text, LongWritable> {
+    public static class CountSizeMap extends Mapper<Object, Text, Text, LongWritable> {
 
         private Text outKey = new Text();
+        private final LongWritable one = new LongWritable(1);
 
-        public void map(Text key, Text value, Context context)
+        public void map(Object key, Text value, Context context)
                 throws IOException, InterruptedException {
 
             String line = value.toString();
 
-            // extract label
+            // separate uni/bi-gram and counts
             String[] seg = line.trim().split("\t");
-            if (seg.length != 3) {
+            if (seg.length != 2) {
                 return;
             }
-
-            // check the year
-            int year = Integer.parseInt(seg[1]);
-
-            if (year < 1970) {
-                outVal.set("C " + seg[2]); // foreground corpus
+            
+            String[] part = seg[1].split(" ");
+            long Cx = Long.parseLong(part[0]);
+            long Bx = Long.parseLong(part[1]);
+            
+            String type = null;
+            // check the gram type
+            if (seg[0].contains(" ")) { // bigram
+                type = "b";
+                outKey.set("**");
+                context.write(outKey, one);
             } else {
-                outVal.set("B " + seg[2]); // background corpus
+                type = "u";
+                outKey.set("*");
+                context.write(outKey, one);
             }
-            outKey.set(seg[0]);
-            context.write(outKey, outVal);
+            
+            // output 4 keys ub/uc/bb/bc
+            outKey.set(type + "c");
+            context.write(outKey, new LongWritable(Cx));
+            outKey.set(type + "b");
+            context.write(outKey, new LongWritable(Bx));
         }
     }
 
-    public static class CountSizeReduce extends Reducer<Text, Text, Text, Text> {
+    public static class CountSizeReduce extends Reducer<Text, LongWritable, Text, LongWritable> {
 
-        private Text outVal = new Text();
-
-        public void reduce(Text key, Iterable<Text> values, Context context)
+        public void reduce(Text key, Iterable<LongWritable> values, Context context)
                 throws IOException, InterruptedException {
 
-            long Cx = 0, Bx = 0;
-            for (Text val : values) {
-                String[] seg = val.toString().split(" ");
-                long count = Long.parseLong(seg[1]);
-                if (seg[0].equals("C")) {
-                    Cx += count;
-                } else {
-                    Bx += count;
-                }
+            long sum = 0;
+            
+            for (LongWritable val : values) {
+                sum += val.get();
             }
-            outVal.set(Cx + " " + Bx);
-
-            context.write(key, outVal);
+            
+            context.write(key, new LongWritable(sum));
         }
     }
 }
