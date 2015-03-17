@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -97,7 +98,9 @@ public class run_hadoop_phrase {
         // keys: ub/uc/bb/bc
         long uniCxSum = 0, uniBxSum = 0, biCxSum = 0, biBxSum = 0;
         long ctUni = 0, ctBi = 0;
-        FileSystem fs = FileSystem.get(new Configuration());
+        // FileSystem fs = FileSystem.get(new Configuration());
+        URI uri = URI.create(args[3]);
+        FileSystem fs = FileSystem.get(uri, new Configuration());
         FileStatus[] status = fs.listStatus(new Path(args[3]));
         for (int i = 0; i < status.length; i++) {
             if (!fs.isFile(status[i].getPath())) {
