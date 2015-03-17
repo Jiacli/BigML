@@ -49,11 +49,12 @@ public class LR {
         String line = null;
         ArrayList<Integer> feats = new ArrayList<>();
         HashSet<String> labels = new HashSet<>();
-        double y, lambda_t = 0.0;
+        double y, lambda_t = 0.0, alpha = 0.0;
         int k = 0;
         for (int t = 1; t < T; t++) {
             // update learning rate
             lambda_t = lambda / (t * t);
+            alpha = 1-2*lambda_t*mu;
             
             for (k = sizeT * (t-1); k < sizeT * t; k++) {
                 line = br.readLine();
@@ -71,7 +72,7 @@ public class LR {
                     // for each feature
                     for (int feat : feats) {
                         if (k - A[tag][feat] > 0) {
-                            beta[tag][feat] *= Math.pow(1-2*lambda_t*mu, k-A[tag][feat]);
+                            beta[tag][feat] *= Math.pow(alpha, k-A[tag][feat]);
                             A[tag][feat] = k;
                         }
                         double z = 0.0;
@@ -89,7 +90,7 @@ public class LR {
         for (int i = 0; i < beta.length; i++) {
             for (int j = 0; j < beta[0].length; j++) {
                 if (k - A[i][j] > 0) {
-                    beta[i][j] *= Math.pow(1-2*lambda_t*mu, k-A[i][j]);
+                    beta[i][j] *= Math.pow(alpha, k-A[i][j]);
                 }
             }
         }
