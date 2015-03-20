@@ -4,17 +4,20 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.StringTokenizer;
+
+import javax.rmi.CORBA.Util;
 
 /**
  * @author JK
  *
  */
 
-public class LR {
+public class LR_report {
 
     /**
      * @param args
@@ -25,11 +28,12 @@ public class LR {
     public static void main(String[] args) throws IOException {
         if (args.length != 6) {
             System.err.println("Error: invalid arguments!");
+            Initialize();
             System.exit(-1);
         }
 
         // load parameters
-        N = Integer.parseInt(args[0]) / 10; // vocabulary size
+        N = Integer.parseInt(args[0]); // vocabulary size
         float lambda = Float.parseFloat(args[1]); // learning rate
         float mu = Float.parseFloat(args[2]); // regularization coefficient
         int T = Integer.parseInt(args[3]); // maximum iteration
@@ -37,7 +41,7 @@ public class LR {
         String testset = args[5];
         HashMap<String, Integer> map = Initialize();
         float[][] beta = new float[14][N];
-        short[][] A = new short[14][N];
+        int[][] A = new int[14][N];
 
         // training
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -47,10 +51,13 @@ public class LR {
         HashSet<String> labels = new HashSet<>();
         double y, lambda_t = 0.0, alpha = 0.0;
         int k = 0;
-        for (int t = 1; t < T; t++) {
+        for (int t = 1; t <= T; t++) {
             // update learning rate
             lambda_t = lambda / (t * t);
             alpha = 1 - 2 * lambda_t * mu;
+            
+            // sum conditional log-likelihood
+            double sumLCL = 0.0;
 
             for (k = sizeT * (t - 1); k < sizeT * t; k++) {
                 line = br.readLine();
@@ -59,28 +66,39 @@ public class LR {
                 // }
                 tokenizeDoc(line, feats, labels);
                 for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                    if (labels.contains(entry.getKey())) {
-                        y = 1.0;
-                    } else {
-                        y = 0.0;
-                    }
+                    
                     int tag = entry.getValue();
                     double z = 0.0;
                     for (int id : feats) {
                         z += beta[tag][id];
                     }
+                    
+                    // calculate sumLCL Q1
+                    double p = sigmoid_o(z);
+                    if (labels.contains(entry.getKey())) {
+                        y = 1.0;
+                        sumLCL += Math.log(p);
+                    } else {
+                        y = 0.0;
+                        sumLCL += Math.log(1-p);
+                    }
+                    
                     double val = lambda_t * (y - sigmoid(z));
                     // for each feature
                     for (int feat : feats) {
                         if (k - A[tag][feat] > 0) {
                             beta[tag][feat] *= Math
                                     .pow(alpha, k - A[tag][feat]);
-                            A[tag][feat] = (short) k;
+                            A[tag][feat] = k;
                         }
                         beta[tag][feat] += val;
                     }
                 }
             }
+            
+            // output sumLCL
+            System.out.println("Iteration " + t + ": LCL=" + sumLCL);
+            
         }
         br.close();
         // apply final regularization
@@ -92,32 +110,56 @@ public class LR {
             }
         }
 
+        
+        // auto evaluation part
         br = new BufferedReader(new InputStreamReader(new FileInputStream(
                 testset)));
         double[] z = new double[14];
+        int correct_sample = 0, all_sample = 0;
+        
         while ((line = br.readLine()) != null) {
-            tokenizeDocTest(line, feats);
+            tokenizeDoc(line, feats, labels);
             for (int feat : feats) {
                 for (int i = 0; i < z.length; i++) {
                     z[i] += beta[i][feat];
                 }
             }
-            StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                sb.append(entry.getKey());
-                sb.append("\t");
-                sb.append(sigmoid(z[entry.getValue()]));
-                sb.append(",");
+                double p = sigmoid(z[entry.getValue()]);
+                String key = entry.getKey();
+                if ((p >= 0.5 && labels.contains(key)) || (p < 0.5 && !labels.contains(key)) ) {
+                    correct_sample++;
+                }
+                all_sample++;
             }
-            System.out.println(sb.substring(0, sb.length() - 1));
+            
+//            StringBuilder sb = new StringBuilder();
+//            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+//                sb.append(entry.getKey());
+//                sb.append("\t");
+//                sb.append(sigmoid(z[entry.getValue()]));
+//                sb.append(",");
+//            }
+//            System.out.println(sb.substring(0, sb.length() - 1));
             Arrays.fill(z, 0.0);
         }
         br.close();
-
+        
+        System.out.println("Accuracy: " + ((double)correct_sample / all_sample));
     }
 
     private static double sigmoid(double z) {
         return 1.0 - 1.0 / (1.0 + Math.exp(z));
+    }
+    
+    private static double overflow = 20;
+    protected static double sigmoid_o(double score) {
+        if (score > overflow)
+            score = overflow;
+        else if (score < -overflow)
+            score = -overflow;
+        double exp = Math.exp(score);
+        return exp / (1 + exp);
     }
 
     private static void tokenizeDoc(String cur_doc, ArrayList<Integer> feats,
@@ -161,7 +203,7 @@ public class LR {
 
     private static HashMap<String, Integer> Initialize() {
         HashMap<String, Integer> map = new HashMap<>();
-        // ca de el es fr ga hr hu nl pl pt ru sl tr
+
         map.put("nl", 0);
         map.put("el", 1);
         map.put("ru", 2);
