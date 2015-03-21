@@ -2,12 +2,10 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.StringTokenizer;
 
 /**
  * @author JK
@@ -32,7 +30,7 @@ public class LR {
         N = Integer.parseInt(args[0]) / 10; // vocabulary size
         float lambda = Float.parseFloat(args[1]); // learning rate
         float mu = Float.parseFloat(args[2]); // regularization coefficient
-        int T = Integer.parseInt(args[3]); // maximum iteration
+        int T = Integer.parseInt(args[3]) / 2; // maximum iteration
         int sizeT = Integer.parseInt(args[4]); // size of trianing dataset
         String testset = args[5];
         HashMap<String, Integer> map = Initialize();
@@ -43,7 +41,6 @@ public class LR {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
         String line = null;
-        ArrayList<Integer> feats = new ArrayList<>();
         HashSet<String> labels = new HashSet<>();
         double y, lambda_t = 0.0, alpha = 0.0;
         int k = 0;
@@ -57,7 +54,7 @@ public class LR {
                 // if (line == null) {
                 // continue;
                 // }
-                tokenizeDoc(line, feats, labels);
+                int[] feats = tokenizeDoc(line, labels);
                 for (Map.Entry<String, Integer> entry : map.entrySet()) {
                     if (labels.contains(entry.getKey())) {
                         y = 1.0;
@@ -96,7 +93,7 @@ public class LR {
                 testset)));
         double[] z = new double[14];
         while ((line = br.readLine()) != null) {
-            tokenizeDocTest(line, feats);
+            int[] feats = tokenizeDocTest(line);
             for (int feat : feats) {
                 for (int i = 0; i < z.length; i++) {
                     z[i] += beta[i][feat];
@@ -120,43 +117,36 @@ public class LR {
         return 1.0 - 1.0 / (1.0 + Math.exp(z));
     }
 
-    private static void tokenizeDoc(String cur_doc, ArrayList<Integer> feats,
-            HashSet<String> labels) {
-        feats.clear();
+    private static int[] tokenizeDoc(String cur_doc, HashSet<String> labels) {
         labels.clear();
-
-        StringTokenizer st = new StringTokenizer(cur_doc, " \t\r\n");
-        String label = st.nextToken(); // label will be stored at index 0
-        for (String tag : label.split(",")) {
+        String[] tokens = cur_doc.split("\\s+");
+        for (String tag : tokens[0].split(",")) {
             labels.add(tag);
         }
+        int[] feats = new int[tokens.length - 1];
 
-        while (st.hasMoreTokens()) {
-            String word = st.nextToken();
-            if (word.length() > 3 && word.length() < 15) {
-                int word_id = word.hashCode() % N;
-                while (word_id < 0)
-                    word_id += N;
-                feats.add(word_id);
-            }
+        for (int i = 0; i < feats.length; i++) {
+            int word_id = tokens[i + 1].hashCode() % N;
+            while (word_id < 0)
+                word_id += N;
+            feats[i] = word_id;
         }
+
+        return feats;
     }
 
-    private static void tokenizeDocTest(String cur_doc, ArrayList<Integer> feats) {
-        feats.clear();
+    private static int[] tokenizeDocTest(String cur_doc) {
+        String[] tokens = cur_doc.split("\\s+");
+        int[] feats = new int[tokens.length - 1];
 
-        StringTokenizer st = new StringTokenizer(cur_doc, " \t\r\n");
-        st.nextToken(); // label will be stored at index 0
-
-        while (st.hasMoreTokens()) {
-            String word = st.nextToken();
-            if (word.length() > 3 && word.length() < 15) {
-                int word_id = word.hashCode() % N;
-                while (word_id < 0)
-                    word_id += N;
-                feats.add(word_id);
-            }
+        for (int i = 0; i < feats.length; i++) {
+            int word_id = tokens[i + 1].hashCode() % N;
+            while (word_id < 0)
+                word_id += N;
+            feats[i] = word_id;
         }
+
+        return feats;
     }
 
     private static HashMap<String, Integer> Initialize() {
