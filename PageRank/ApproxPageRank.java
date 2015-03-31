@@ -41,7 +41,6 @@ public class ApproxPageRank {
         cacheMap = new HashMap<>();
         toCache = new HashSet<>();
 
-        // p.put(seed, 0.0);
         toCache.add(seed);
         cachePages();
     }
@@ -147,12 +146,9 @@ public class ApproxPageRank {
                 double v2 = o2.getValue();
                 if (v1 < v2) {
                     return 1;
-                } else/* if (v1 > v2)*/ {
+                } else {
                     return -1;
                 }
-//                } else {
-//                    return 0;
-//                }
             }
         });
         
