@@ -1,7 +1,12 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -10,6 +15,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import org.apache.hadoop.hdfs.server.datanode.browseBlock_jsp;
 
 /**
  * Efficient Approximate PageRank
@@ -30,16 +37,20 @@ public class PR_report {
     private HashMap<String, Double> p;
     private HashMap<String, String[]> cacheMap;
     private HashSet<String> toCache;
-
+    private HashMap<String, Integer> seqMap;
+    private int global_count = 1;
+    
     public PR_report(String[] args) throws IOException {
         inputPath = args[0];
         seed = args[1];
         alpha = Double.parseDouble(args[2]);
         epsilon = Double.parseDouble(args[3]);
+        System.out.println(seed + "," + alpha +"," + epsilon);
 
         p = new HashMap<>();
         cacheMap = new HashMap<>();
         toCache = new HashSet<>();
+        seqMap = new HashMap<>();
 
         // p.put(seed, 0.0);
         toCache.add(seed);
@@ -180,6 +191,7 @@ public class PR_report {
             if (cond < cond_star) {
                 cond_star = cond;
                 for (String node : S_star) {
+                    seqMap.put(node, global_count++);
                     System.out.println(node + "\t" + Math.max(1.0, Math.log(p.get(node) / epsilon)));
                 }
                 S_star.clear();
@@ -199,6 +211,37 @@ public class PR_report {
         }
         return count;
     }
+    
+    public void toGDF() throws IOException {
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(
+                "/Users/jiacli/Desktop/605hw6/result.gdf")));
+        bw.write("nodedef>name VARCHAR,label VARCHAR,width DOUBLE,height DOUBLE\n");
+        
+        for (String key : seqMap.keySet()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(seqMap.get(key));
+            sb.append(",");
+            sb.append(key);
+            sb.append(",");
+            sb.append(Math.max(1.0, Math.log(p.get(key) / epsilon)));
+            sb.append(",");
+            sb.append(Math.max(1.0, Math.log(p.get(key) / epsilon)));
+            sb.append("\n");
+            bw.write(sb.toString());
+        }
+        
+        bw.write("edgedef>node1 VARCHAR,node2 VARCHAR\n");
+        for (String key : seqMap.keySet()) {
+            String[] neighbor = cacheMap.get(key);
+            for (int i = 1; i < neighbor.length; i++) {
+                if (seqMap.containsKey(neighbor[i])) {
+                    bw.write(seqMap.get(key) + "," + seqMap.get(neighbor[i]) + "\n");
+                }
+            }
+        }
+        bw.close();  
+        
+    }
 
     public static void main(String[] args) throws IOException {
 
@@ -211,6 +254,9 @@ public class PR_report {
 
         // build low-conductance subgraph and output results
         apr.buildSubgraph();
+        
+        // output in Gephi format
+        apr.toGDF();
 
     }
 }
