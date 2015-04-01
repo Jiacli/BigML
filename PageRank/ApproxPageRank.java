@@ -154,7 +154,7 @@ public class ApproxPageRank {
         
         // initial parameters
         int volume = cacheMap.get(seed).length - 1;
-        int boundary = getBoundary(S);
+        int boundary = getBoundary(S, seed);
         double cond = (double) boundary / volume;
         double cond_star = cond;
         
@@ -165,13 +165,14 @@ public class ApproxPageRank {
                 continue;
             }
             
-            S.add(page);
-            S_star.add(page);
+            
             
             // re-calculate conductance
             volume += cacheMap.get(page).length - 1;
-            boundary = getBoundary(S);
+            boundary += getBoundary(S, page);
             cond = (double) boundary / volume;
+            S.add(page);
+            S_star.add(page);
             
             if (cond < cond_star) {
                 cond_star = cond;
@@ -183,17 +184,28 @@ public class ApproxPageRank {
         }
     }
     
-    private int  getBoundary(HashSet<String> S) {
+    private int  getBoundary(HashSet<String> S, String node) {
+        // obtained from pigwall
         int count = 0;
-        for (String node : S) {
-            String[] neighbor = cacheMap.get(node);
-            for (int i = neighbor.length - 1; i > 0; i--) {
-                if (!S.contains(neighbor[i])) {
-                    count++;
-                }
+        String[] neighbor = cacheMap.get(node);
+        for (int i = neighbor.length - 1; i > 0; i--) {
+            if (S.contains(neighbor[i])) {
+                count--;
+            } else {
+                count++;
             }
         }
         return count;
+        
+//        for (String node : S) {
+//            String[] neighbor = cacheMap.get(node);
+//            for (int i = neighbor.length - 1; i > 0; i--) {
+//                if (!S.contains(neighbor[i])) {
+//                    count++;
+//                }
+//            }
+//        }
+//        return count;
     }
 
     public static void main(String[] args) throws IOException {
