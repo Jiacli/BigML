@@ -164,9 +164,7 @@ public class ApproxPageRank {
             if (seed.equals(page)) {
                 continue;
             }
-            
-            
-            
+
             // re-calculate conductance
             volume += cacheMap.get(page).length - 1;
             boundary += getBoundary(S, page);
@@ -185,7 +183,7 @@ public class ApproxPageRank {
     }
     
     private int  getBoundary(HashSet<String> S, String node) {
-        // obtained from pigwall
+        // more efficient boundary
         int count = 0;
         String[] neighbor = cacheMap.get(node);
         for (int i = neighbor.length - 1; i > 0; i--) {
@@ -196,16 +194,6 @@ public class ApproxPageRank {
             }
         }
         return count;
-        
-//        for (String node : S) {
-//            String[] neighbor = cacheMap.get(node);
-//            for (int i = neighbor.length - 1; i > 0; i--) {
-//                if (!S.contains(neighbor[i])) {
-//                    count++;
-//                }
-//            }
-//        }
-//        return count;
     }
 
     public static void main(String[] args) throws IOException {
