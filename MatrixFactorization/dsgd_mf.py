@@ -5,57 +5,6 @@ import numpy as np
 from pyspark import SparkConf, SparkContext
 
 
-# parse the raw input of the data
-def parse_line(record):
-    uid, mid, rating = record.split(',')
-    return int(uid), int(mid), int(rating)
-    
-# indexing the data matrix V
-def data_indexing(record, broadcastVar, row_counts, col_counts):
-    (uid, mid, rating) = record
-    num_workers, mov_bound, usr_bound = broadcastVar.value
-    i = -1
-    j = -1
-    for idx in xrange(num_workers):
-        (lower, upper) = mov_bound[idx]
-        if mid >= lower and mid <= upper:
-            j = idx
-            break
-    for idx in xrange(num_workers):
-        (lower, upper) = usr_bound[idx]
-        if uid >= lower and uid <= upper:
-            i = idx
-            break
-    if j - i < 0:
-        i = j + num_workers - i
-    else:
-        i = j - i
-    N_i = 0
-    N_j = 0
-    if uid in row_counts:
-        N_i = row_counts[uid]
-    if mid in col_counts:
-        N_j = col_counts[mid]
-    return (i, j, uid, mid, rating, N_i, N_j)
-
-
-def compute_boundary(max_mid, max_uid, num_workers):
-    # assume index from 0
-    mov_step = int((max_mid+1) / num_workers)
-    usr_step = int((max_uid+1) / num_workers)
-
-    mov_interval = []
-    usr_interval = []
-
-    for idx in xrange(num_workers):
-        if idx != num_workers-1:
-            mov_interval.append((idx*mov_step, (idx+1)*mov_step-1))
-            usr_interval.append((idx*usr_step, (idx+1)*usr_step-1))
-        else:
-            mov_interval.append((idx*mov_step, max_mid))
-            usr_interval.append((idx*usr_step, max_uid))
-    return mov_interval, usr_interval
-
 def main(args):
     # load parameters
     num_factors = int(args[1])
@@ -114,10 +63,10 @@ def main(args):
     W = np.random.rand(max_uid + 1, num_factors)
     H = np.random.rand(max_mid + 1, num_factors)
     params = sc.broadcast([beta_v, lambda_v])
-    MSE = []
+    NZSL = []
 
-    sumMSE, n = V.map(lambda x: evaluation(x, W, H)).reduce(lambda x,y: (x[0]+y[0], x[1]+y[1]))
-    MSE.append(sumMSE / n)
+    sumSL, n = V.map(lambda x: evaluation(x, W, H)).reduce(lambda x,y: (x[0]+y[0], x[1]+y[1]))
+    NZSL.append(sumSL / n)
 
     # perform gradient
     m = 0
@@ -133,21 +82,78 @@ def main(args):
                 H[x[1]] = x[2]
 
         # evaluation
-        sumMSE, n = V.map(lambda x: evaluation(x, W, H)).reduce(lambda x,y: (x[0]+y[0], x[1]+y[1]))
-        MSE.append(sumMSE / n)
+        sumSL, n = V.map(lambda x: evaluation(x, W, H)).reduce(lambda x,y: (x[0]+y[0], x[1]+y[1]))
+        NZSL.append(sumSL / n)
 
 
         # update the # of iteration
         m += strata_count[t % num_workers]
 
-    print MSE
+    # save the matrix W and H
+    save_results(W, outputW, H, outputH)
 
+    # print the construction error log
+    print NZSL
+
+
+# parse the raw input of the data
+def parse_line(record):
+    uid, mid, rating = record.split(',')
+    return int(uid), int(mid), int(rating)
+    
+# indexing the data matrix V to create strata and partition
+def data_indexing(record, broadcastVar, row_counts, col_counts):
+    (uid, mid, rating) = record
+    num_workers, mov_bound, usr_bound = broadcastVar.value
+    i = -1
+    j = -1
+    for idx in xrange(num_workers):
+        (lower, upper) = mov_bound[idx]
+        if mid >= lower and mid <= upper:
+            j = idx
+            break
+    for idx in xrange(num_workers):
+        (lower, upper) = usr_bound[idx]
+        if uid >= lower and uid <= upper:
+            i = idx
+            break
+    if j - i < 0:
+        i = j + num_workers - i
+    else:
+        i = j - i
+    N_i = 0
+    N_j = 0
+    if uid in row_counts:
+        N_i = row_counts[uid]
+    if mid in col_counts:
+        N_j = col_counts[mid]
+    return (i, j, uid, mid, rating, N_i, N_j)
+
+# compute the indexing boundary
+def compute_boundary(max_mid, max_uid, num_workers):
+    # assume index from 0
+    mov_step = int((max_mid+1) / num_workers)
+    usr_step = int((max_uid+1) / num_workers)
+
+    mov_interval = []
+    usr_interval = []
+
+    for idx in xrange(num_workers):
+        if idx != num_workers-1:
+            mov_interval.append((idx*mov_step, (idx+1)*mov_step-1))
+            usr_interval.append((idx*usr_step, (idx+1)*usr_step-1))
+        else:
+            mov_interval.append((idx*mov_step, max_mid))
+            usr_interval.append((idx*usr_step, max_uid))
+    return mov_interval, usr_interval
+
+# evaluate the NZSL
 def evaluation(record, W, H):
     (uid, mid, rating) = record
     err = (rating - np.dot(W[uid], H[mid]))**2
     return (err, 1)
 
-
+# update the weights of W and H using SGD
 def updateWeights(iterator, W, H, t, m, params):
     beta_v, lambda_v = params.value
     epsilon = (100 + t + m)**(-beta_v)
@@ -176,16 +182,11 @@ def updateWeights(iterator, W, H, t, m, params):
 
     return results
 
-def calcGradientx(iterator, W, H):
-    #records = list(iterator)
-    maxuid = -1
-    maxmid = -1
-    for record in iterator:
-        if record[1][0] > maxuid:
-            maxuid = record[1][0]
-        if record[1][1] > maxmid:
-            maxmid = record[1][1]
-    return [(maxuid, maxmid),(maxuid, maxmid)]
+# save the matrix W and H to files
+def save_results(W, outputW, H, outputH):
+    np.savetxt(outputW, W, delimiter=",")
+    np.savetxt(outputH, H.T, delimiter=",")
+
 
 if __name__ == '__main__':
     # usage
@@ -193,7 +194,6 @@ if __name__ == '__main__':
         print 'Usage: spark-submit dsgd_mf.py <num_factors> <num_workers> \
                 <num_iterations> <beta_value> <lambda_value> \
                 <inputV_filepath> <outputW_filepath> <outputH_filepath>'
-        #sys.exit(-1)
-    
+        sys.exit(-1)
 
     main(sys.argv)
